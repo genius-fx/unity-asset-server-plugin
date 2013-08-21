@@ -29,9 +29,7 @@ import hudson.model.BuildListener;
 import hudson.model.TaskListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
-import hudson.scm.ChangeLogParser;
-import hudson.scm.SCMDescriptor;
-import hudson.scm.SCM;
+import hudson.scm.*;
 import hudson.util.FormValidation;
 
 import java.io.File;
@@ -118,7 +116,7 @@ public class UnityAssetSCM extends SCM {
 
 	}
 
-	private List<UnityChangelog> logChangesDetails(List<UnityChangelog> changes)
+    private List<UnityChangelog> logChangesDetails(List<UnityChangelog> changes)
 			throws Exception {
 
 		Connection conn = UnityDatabseUtil.getInstance().getSqlConnection(
@@ -156,25 +154,32 @@ public class UnityAssetSCM extends SCM {
 		return changes;
 	}
 
-	@Override
-	public boolean pollChanges(AbstractProject project, Launcher launcher,
-			FilePath workspace, TaskListener listener) throws IOException,
-			InterruptedException {
 
-		Calendar calendar = Calendar.getInstance(TimeZone.getDefault());
+    @Override
+    public SCMRevisionState calcRevisionsFromBuild(AbstractBuild<?, ?> abstractBuild, Launcher launcher, TaskListener taskListener) throws IOException, InterruptedException {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
 
-		if (project.getLastSuccessfulBuild() != null) {
-			calendar = project.getLastSuccessfulBuild().getTimestamp();
-		}
+    @Override
+    protected PollingResult compareRemoteRevisionWith(AbstractProject<?, ?> abstractProject, Launcher launcher, FilePath filePath, TaskListener taskListener, SCMRevisionState scmRevisionState) throws IOException, InterruptedException {
+        Calendar calendar = Calendar.getInstance(TimeZone.getDefault());
 
-		List<UnityChangelog> changes = getChangeList(calendar);
-		System.out.println(changes.size()
-				+ " Changes Found since "
-				+ DateFormat.getDateTimeInstance(DateFormat.MEDIUM,
-						DateFormat.MEDIUM).format(calendar.getTime()));
+        if (abstractProject.getLastSuccessfulBuild() != null) {
+            calendar = abstractProject.getLastSuccessfulBuild().getTimestamp();
+        }
 
-		return changes.size() != 0;
-	}
+        List<UnityChangelog> changes = getChangeList(calendar);
+        Logger.getLogger("UnitAssetPlugin").log(Level.INFO,
+                changes.size()
+                        + " Changes Found since "
+                        + DateFormat.getDateTimeInstance(DateFormat.MEDIUM,
+                        DateFormat.MEDIUM).format(calendar.getTime()));
+
+        System.out.println();
+
+        return changes.size() != 0 ? PollingResult.SIGNIFICANT : PollingResult.NO_CHANGES;
+    }
+
 
 	@Override
 	public boolean checkout(AbstractBuild build, Launcher launcher,
@@ -223,21 +228,37 @@ public class UnityAssetSCM extends SCM {
 
 		StringBuilder sql = new StringBuilder();
 
-		sql.append("SELECT p.username,c.commit_time, c.serial,c.description,c.creator FROM changeset c,person p WHERE c.creator = p.serial ");
-		sql.append("AND commit_time >= ? ");
-		sql.append("ORDER BY commit_time DESC ");
-
 		try {
 
 			Connection conn = UnityDatabseUtil.getInstance().getSqlConnection(
 					getDatabaseUrl(), getDatabasePort(), getInstance(),
 					getUser(), getPassword());
 
-			PreparedStatement stmt = conn.prepareStatement(sql.toString());
+            Timestamp current_time = new Timestamp(Calendar.getInstance(TimeZone.getDefault()).getTimeInMillis());
+            Timestamp time_to_compare = new Timestamp(calendar.getTimeInMillis());
 
-			stmt.setTimestamp(1, new Timestamp(calendar.getTimeInMillis()));
+            long time_diff = (current_time.getTime() / 1000) - (time_to_compare.getTime() / 1000);
 
-			ResultSet rs = stmt.executeQuery();
+            sql.append("SELECT p.username,c.commit_time, c.serial,c.description,c.creator FROM changeset c,person p WHERE c.creator = p.serial ");
+            sql.append("AND commit_time >= now() - interval '").append(time_diff).append(" seconds' ");
+            sql.append("ORDER BY commit_time DESC ");
+
+            PreparedStatement stmt = conn.prepareStatement(sql.toString());
+
+
+            Logger.getLogger("UnitAssetPlugin").log(Level.INFO,
+                    "current_time" + time_to_compare.toString());
+
+            Logger.getLogger("UnitAssetPlugin").log(Level.INFO,
+                    "time_to_compare" + time_to_compare.toString());
+
+            Logger.getLogger("UnitAssetPlugin").log(Level.INFO,
+                    "time_diff" + time_diff);
+
+            Logger.getLogger("UnitAssetPlugin").log(Level.INFO,
+                    "Sql: " + stmt.toString());
+
+            ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
 
 				UnityChangelog entry = new UnityChangelog(
