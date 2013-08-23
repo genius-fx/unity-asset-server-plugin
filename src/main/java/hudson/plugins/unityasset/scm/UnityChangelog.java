@@ -35,6 +35,8 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
@@ -119,7 +121,12 @@ public class UnityChangelog extends Entry implements Serializable {
 
 		public UnityItem(String message, Integer action) {
 			super();
-			this.action = action;
+
+            Logger.getLogger("UnitAssetPlugin").log(Level.INFO,
+                    "New UnityItem. Action: " + action + ", Message: " + message
+                    );
+
+            this.action = action;
 			this.message = message;
 		}
 

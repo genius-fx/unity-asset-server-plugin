@@ -27,10 +27,7 @@ import hudson.scm.ChangeLogParser;
 import hudson.scm.ChangeLogSet;
 import hudson.util.XStream2;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -104,11 +101,14 @@ public class UnityChangelogSet extends ChangeLogSet<UnityChangelog> {
 
 		public void save(UnityChangelogSet changeLogSet, File file)
 				throws FileNotFoundException {
-			FileOutputStream out = null;
+            Writer out = null;
 			try {
-				out = new FileOutputStream(file);
+                 out = new BufferedWriter(new OutputStreamWriter(
+                        new FileOutputStream(file), "UTF-8"));
 				xstream.toXML(changeLogSet, out);
-			} finally {
+			} catch (UnsupportedEncodingException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } finally {
 				IOUtils.closeQuietly(out);
 			}
 		}
