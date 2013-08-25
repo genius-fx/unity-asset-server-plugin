@@ -196,7 +196,9 @@ public class UnityAssetSCM extends SCM {
 
         // Check if changes in last successful build is not equals to current
         if (abstractProject.getLastSuccessfulBuild() != null && changes.size() > 0) {
-            boolean equals = true;
+
+            boolean equals = !abstractProject.getLastSuccessfulBuild().getChangeSet().isEmptySet();
+
             for (ChangeLogSet.Entry element : abstractProject.getLastSuccessfulBuild().getChangeSet()) {
                 for (UnityChangelog c : changes) {
                     if (!c.equals(element)) {
